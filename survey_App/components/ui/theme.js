@@ -15,7 +15,7 @@ export const darkTheme = {
   muted: '#94A3B8',
   text: '#E6EEF8',
   accent: '#064A78',
-  accentDark: '#042E4D',
+  accentDark: '#93C5FD',
   cardShadow: 'rgba(2,6,23,0.6)',
 };
 
