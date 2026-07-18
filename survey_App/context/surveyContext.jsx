@@ -1,22 +1,42 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SurveyContext = createContext();
 
 export function SurveyProvider({ children }) {
   const [surveys, setSurveys] = useState([]);
+
+  // Load persisted surveys on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@surveys');
+        if (stored) setSurveys(JSON.parse(stored));
+      } catch (e) {
+        console.warn('Failed to load surveys', e);
+      }
+    })();
+  }, []);
+
+  // Persist surveys whenever they change
+  useEffect(() => {
+    AsyncStorage.setItem('@surveys', JSON.stringify(surveys)).catch(e => console.warn('Failed to save surveys', e));
+  }, [surveys]);
   
   // Active states for linking modules to a new survey
-  const [activePhoto, setActivePhoto] = useState(null);
+  const [activePhotos, setActivePhotos] = useState([]);
   const [activeLocation, setActiveLocation] = useState(null);
   const [activeContact, setActiveContact] = useState(null);
 
+  const addActivePhoto = (uri) => setActivePhotos(prev => [...prev, uri]);
+  const removeActivePhoto = (uri) => setActivePhotos(prev => prev.filter(p => p !== uri));
   const addSurvey = (survey) => {
     const newSurvey = {
       ...survey,
       id: `SUR-${Date.now()}`,
       createdAt: new Date().toISOString(),
+      status: 'draft',
     };
-
     setSurveys((previousSurveys) => [
       newSurvey,
       ...previousSurveys,
@@ -40,7 +60,7 @@ export function SurveyProvider({ children }) {
   };
 
   const resetActiveMedia = () => {
-    setActivePhoto(null);
+    setActivePhotos([]);
     setActiveLocation(null);
     setActiveContact(null);
   };
@@ -52,8 +72,9 @@ export function SurveyProvider({ children }) {
         addSurvey,
         updateSurvey,
         deleteSurvey,
-        activePhoto,
-        setActivePhoto,
+        activePhotos,
+        addActivePhoto,
+        removeActivePhoto,
         activeLocation,
         setActiveLocation,
         activeContact,

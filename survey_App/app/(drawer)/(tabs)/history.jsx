@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Image,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
@@ -40,7 +41,8 @@ export default function HistoryScreen() {
   // Filter and search logic
   const filteredSurveys = surveys.filter((survey) => {
     const matchesPriority =
-      activeFilter === 'All' || survey.priority === activeFilter;
+      activeFilter === 'All' ||
+      (survey.priority && survey.priority.trim().toLowerCase() === activeFilter.trim().toLowerCase());
     const query = searchQuery.toLowerCase();
     const matchesSearch =
       !query ||
@@ -50,19 +52,28 @@ export default function HistoryScreen() {
     return matchesPriority && matchesSearch;
   });
 
-  const handleDelete = (survey) => {
-    Alert.alert(
-      'Delete Survey',
-      `Are you sure you want to delete the survey for "${survey.siteName}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteSurvey(survey.id),
-        },
-      ]
-    );
+  const handleDelete = (surveyItem) => {
+    const doDelete = () => deleteSurvey(surveyItem.id);
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete the survey for "${surveyItem.siteName}"? This action cannot be undone.`
+      );
+      if (confirmed) doDelete();
+    } else {
+      Alert.alert(
+        'Delete Survey',
+        `Are you sure you want to delete the survey for "${surveyItem.siteName}"? This action cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: doDelete,
+          },
+        ]
+      );
+    }
   };
 
   const onRefresh = () => {
@@ -254,72 +265,76 @@ export default function HistoryScreen() {
   });
 
   const renderSurveyCard = ({ item }) => {
-    const pColor = PRIORITY_COLORS[item.priority] || theme.muted;
+    const priorityKey = Object.keys(PRIORITY_COLORS).find(
+      (k) => k.toLowerCase() === (item.priority || '').trim().toLowerCase()
+    ) || 'Medium';
+    const pColor = PRIORITY_COLORS[priorityKey] || theme.muted;
 
     return (
-      <Pressable
-        style={styles.card}
-        onPress={() =>
-          router.push({
-            pathname: '/survey-details',
-            params: { surveyId: item.id },
-          })
-        }
-      >
-        <View style={styles.cardTop}>
-          <View style={styles.cardIconBox}>
-            <MaterialIcons name="assignment" size={26} color={theme.accent} />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardSiteName} numberOfLines={1}>
-              {item.siteName}
-            </Text>
-            <Text style={styles.cardClient} numberOfLines={1}>
-              {item.clientName}
-            </Text>
-          </View>
-          {item.photo && (
-            <Image source={{ uri: item.photo }} style={styles.cardPhotoThumb} />
-          )}
-        </View>
-
-        <View style={styles.cardBottom}>
-          <View style={styles.cardMeta}>
-            <View style={styles.metaItem}>
-              <MaterialIcons name="event" size={14} color={theme.muted} />
-              <Text style={styles.metaText}>{formatDate(item.date || item.createdAt)}</Text>
+      <View style={styles.card}>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/survey-details',
+              params: { surveyId: item.id },
+            })
+          }
+        >
+          <View style={styles.cardTop}>
+            <View style={styles.cardIconBox}>
+              <MaterialIcons name="assignment" size={26} color={theme.accent} />
             </View>
-            <View style={[styles.priorityBadge, { backgroundColor: pColor }]}>
-              <Text style={styles.priorityText}>{item.priority}</Text>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardSiteName} numberOfLines={1}>
+                {item.siteName}
+              </Text>
+              <Text style={styles.cardClient} numberOfLines={1}>
+                {item.clientName}
+              </Text>
             </View>
-            {item.status === 'submitted' && (
-              <View style={styles.metaItem}>
-                <MaterialIcons name="check-circle" size={14} color="#10B981" />
-                <Text style={[styles.metaText, { color: '#10B981' }]}>Submitted</Text>
-              </View>
+            {item.photo && (
+              <Image source={{ uri: item.photo }} style={styles.cardPhotoThumb} />
             )}
           </View>
-          <View style={styles.cardActions}>
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/survey-details',
-                  params: { surveyId: item.id },
-                })
-              }
-            >
-              <MaterialIcons name="visibility" size={18} color={theme.accent} />
-            </Pressable>
-            <Pressable
-              style={[styles.actionBtn, { backgroundColor: '#EF444418' }]}
-              onPress={() => handleDelete(item)}
-            >
-              <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
-            </Pressable>
+
+          <View style={styles.cardBottom}>
+            <View style={styles.cardMeta}>
+              <View style={styles.metaItem}>
+                <MaterialIcons name="event" size={14} color={theme.muted} />
+                <Text style={styles.metaText}>{formatDate(item.date || item.createdAt)}</Text>
+              </View>
+              <View style={[styles.priorityBadge, { backgroundColor: pColor }]}>
+                <Text style={styles.priorityText}>{item.priority}</Text>
+              </View>
+              {item.status === 'submitted' && (
+                <View style={styles.metaItem}>
+                  <MaterialIcons name="check-circle" size={14} color="#10B981" />
+                  <Text style={[styles.metaText, { color: '#10B981' }]}>Submitted</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.cardActions}>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/survey-details',
+                    params: { surveyId: item.id },
+                  })
+                }
+              >
+                <MaterialIcons name="visibility" size={18} color={theme.accent} />
+              </Pressable>
+              <Pressable
+                style={[styles.actionBtn, { backgroundColor: '#EF444418' }]}
+                onPress={(e) => { e.stopPropagation && e.stopPropagation(); handleDelete(item); }}
+              >
+                <MaterialIcons name="delete-outline" size={18} color="#EF4444" />
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
     );
   };
 

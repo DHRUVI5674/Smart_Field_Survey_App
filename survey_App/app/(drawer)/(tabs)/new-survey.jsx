@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Image,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -10,7 +20,7 @@ export default function NewSurvey() {
   const router = useRouter();
   const {
     addSurvey,
-    activePhoto,
+    activePhotos,
     activeLocation,
     activeContact,
     resetActiveMedia,
@@ -24,6 +34,45 @@ export default function NewSurvey() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Load draft on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const draft = await AsyncStorage.getItem('@survey_draft');
+        if (draft) {
+          const data = JSON.parse(draft);
+          setSiteName(data.siteName ?? '');
+          setClientName(data.clientName ?? '');
+          setDescription(data.description ?? '');
+          setPriority(data.priority ?? 'Medium');
+          setDate(data.date ?? new Date().toISOString().slice(0, 10));
+          setNotes(data.notes ?? '');
+        }
+      } catch (e) {
+        console.warn('Failed to load draft', e);
+      }
+    })();
+  }, []);
+
+  // Auto-save draft on change
+  useEffect(() => {
+    const saveDraft = async () => {
+      try {
+        const payload = { siteName, clientName, description, priority, date, notes };
+        await AsyncStorage.setItem('@survey_draft', JSON.stringify(payload));
+      } catch (e) {
+        console.warn('Failed to save draft', e);
+      }
+    };
+    saveDraft();
+  }, [siteName, clientName, description, priority, date, notes]);
+
+  const PRIORITY_COLORS = {
+    Low: '#10B981',
+    Medium: '#F59E0B',
+    High: '#EF4444',
+  };
 
   const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.background },
@@ -85,7 +134,6 @@ export default function NewSurvey() {
       backgroundColor: `${theme.accent}18`,
     },
     attachActionText: { fontSize: 12, fontWeight: '700', color: theme.accent },
-    attachPhoto: { width: 42, height: 42, borderRadius: 10 },
     linkedBadge: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -106,12 +154,6 @@ export default function NewSurvey() {
     },
     submitText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
   });
-
-  const PRIORITY_COLORS = {
-    Low: '#10B981',
-    Medium: '#F59E0B',
-    High: '#EF4444',
-  };
 
   function validate() {
     if (!siteName.trim()) {
@@ -136,17 +178,19 @@ export default function NewSurvey() {
         priority,
         date,
         notes,
-        photo: activePhoto || null,
+        photos: activePhotos,
         location: activeLocation || null,
         contact: activeContact || null,
       });
-      // reset form fields
+      // Reset form fields
       setSiteName('');
       setClientName('');
       setDescription('');
       setPriority('Medium');
       setDate(new Date().toISOString().slice(0, 10));
       setNotes('');
+      // Clear saved draft
+      await AsyncStorage.removeItem('@survey_draft');
       resetActiveMedia();
 
       Alert.alert('Success', 'Survey created successfully', [
@@ -168,13 +212,32 @@ export default function NewSurvey() {
         <Text style={styles.title}>Create New Survey</Text>
 
         <Text style={styles.label}>Site Name *</Text>
-        <TextInput value={siteName} onChangeText={setSiteName} placeholder="Enter site name" placeholderTextColor={theme.muted} style={styles.input} />
+        <TextInput
+          value={siteName}
+          onChangeText={setSiteName}
+          placeholder="Enter site name"
+          placeholderTextColor={theme.muted}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>Client Name *</Text>
-        <TextInput value={clientName} onChangeText={setClientName} placeholder="Enter client name" placeholderTextColor={theme.muted} style={styles.input} />
+        <TextInput
+          value={clientName}
+          onChangeText={setClientName}
+          placeholder="Enter client name"
+          placeholderTextColor={theme.muted}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>Description</Text>
-        <TextInput value={description} onChangeText={setDescription} placeholder="Describe the site or notes" placeholderTextColor={theme.muted} style={[styles.input, styles.textarea]} multiline />
+        <TextInput
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the site or notes"
+          placeholderTextColor={theme.muted}
+          style={[styles.input, styles.textarea]}
+          multiline
+        />
 
         <Text style={styles.label}>Priority</Text>
         <View style={styles.row}>
@@ -202,7 +265,13 @@ export default function NewSurvey() {
         </View>
 
         <Text style={styles.label}>Date</Text>
-        <TextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.muted} style={styles.input} />
+        <TextInput
+          value={date}
+          onChangeText={setDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={theme.muted}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>Notes</Text>
         <TextInput
@@ -221,8 +290,11 @@ export default function NewSurvey() {
           {/* Photo */}
           <View style={styles.attachCard}>
             <View style={[styles.attachIconBox, { backgroundColor: '#3B82F618' }]}>
-              {activePhoto ? (
-                <Image source={{ uri: activePhoto }} style={styles.attachPhoto} />
+              {activePhotos && activePhotos.length > 0 ? (
+                <Image
+                  source={{ uri: activePhotos[0] }}
+                  style={{ width: 42, height: 42, borderRadius: 10 }}
+                />
               ) : (
                 <MaterialIcons name="photo-camera" size={22} color="#3B82F6" />
               )}
@@ -230,10 +302,12 @@ export default function NewSurvey() {
             <View style={{ flex: 1 }}>
               <Text style={styles.attachLabel}>Photo</Text>
               <Text style={styles.attachValue}>
-                {activePhoto ? 'Photo captured' : 'No photo'}
+                {activePhotos && activePhotos.length > 0
+                  ? `${activePhotos.length} photo${activePhotos.length > 1 ? 's' : ''} captured`
+                  : 'No photo'}
               </Text>
             </View>
-            {activePhoto ? (
+            {activePhotos && activePhotos.length > 0 ? (
               <View style={styles.linkedBadge}>
                 <MaterialIcons name="check-circle" size={16} color="#10B981" />
                 <Text style={styles.linkedText}>Linked</Text>
@@ -284,7 +358,7 @@ export default function NewSurvey() {
             <View style={{ flex: 1 }}>
               <Text style={styles.attachLabel}>Contact</Text>
               <Text style={styles.attachValue} numberOfLines={1}>
-                {activeContact ? `${activeContact.name}` : 'No contact'}
+                {activeContact ? activeContact.name : 'No contact'}
               </Text>
             </View>
             {activeContact ? (

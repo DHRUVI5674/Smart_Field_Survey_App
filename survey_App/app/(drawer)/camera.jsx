@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, Image, ActivityIndicator, Alert, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, Image, ActivityIndicator, Alert, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -8,7 +8,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function CameraScreen() {
   const { theme } = useAppTheme();
-  const { setActivePhoto } = useSurveys();
+  const { addActivePhoto, removeActivePhoto } = useSurveys();
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [photo, setPhoto] = useState(null);
@@ -172,7 +172,7 @@ export default function CameraScreen() {
       if (result?.uri) {
         setPhoto(result.uri);
         setPhotoTime(Date.now());
-        setActivePhoto(result.uri);
+        addActivePhoto(result.uri);
       }
     } catch (_err) {
       Alert.alert('Error', 'Unable to take photo');
@@ -180,19 +180,35 @@ export default function CameraScreen() {
   };
 
   const handleRetake = () => {
+    if (photo) {
+      removeActivePhoto(photo);
+    }
     setPhoto(null);
     setPhotoTime(null);
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => { setPhoto(null); setPhotoTime(null); setActivePhoto(null); },
-      },
-    ]);
+    const doDelete = () => {
+      if (photo) {
+        removeActivePhoto(photo);
+      }
+      setPhoto(null);
+      setPhotoTime(null);
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this photo?');
+      if (confirmed) doDelete();
+    } else {
+      Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: doDelete,
+        },
+      ]);
+    }
   };
 
   const toggleFacing = () => {
