@@ -99,7 +99,7 @@ export default function Dashboard() {
 
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsContainer}>
-            <ActionCard title="New Survey" subtitle="Create inspection" icon={'📝'} onPress={() => router.push('./new-survey')} />
+            <ActionCard title="New Survey" subtitle="Create inspection" icon={'📝'} onPress={() => router.push('/(drawer)/(tabs)/new-survey')} />
             <ActionCard title="Camera" subtitle="Capture photo" icon={'📷'} onPress={() => router.push('../camera')} />
             <ActionCard title="Location" subtitle="Get coordinates" icon={'📍'} onPress={() => router.push('../location')} />
             <ActionCard title="Contacts" subtitle="Select client" icon={'👥'} onPress={() => router.push('../contacts')} />
