@@ -16,13 +16,18 @@ export default function Dashboard() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  const { surveys } = useSurveys();
+  const { surveys, activePhotos, activeLocation, activeContact } = useSurveys();
   const { theme, mode, toggleTheme } = useAppTheme();
 
   const openDrawer = () => navigation.dispatch(DrawerActions.openDrawer());
 
   const today = new Date().toDateString();
   const todaySurveys = surveys.filter((survey) => new Date(survey.createdAt).toDateString() === today);
+
+  const hasPhotos = activePhotos && activePhotos.length > 0;
+  const hasLocation = !!activeLocation;
+  const hasContact = !!activeContact;
+  const draftInProgress = hasPhotos || hasLocation || hasContact;
 
   const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.background },
@@ -50,7 +55,59 @@ export default function Dashboard() {
     viewProfile: { color: theme.accentDark, fontWeight: '700' },
 
     sectionTitle: { fontSize: 20, fontWeight: '700', color: theme.text },
-    quickActionsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 15 },
+    quickActionsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      marginTop: 15,
+    },
+    gridCard: {
+      width: '48%',
+      height: 155,
+      backgroundColor: theme.surface,
+      borderRadius: 18,
+      padding: 14,
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: mode === 'light' ? '#EBF3FC' : '#1e293b',
+      elevation: 3,
+      shadowColor: theme.cardShadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      marginBottom: 16,
+    },
+    actionIconBox: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    actionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.text,
+      marginTop: 8,
+    },
+    actionDescription: {
+      fontSize: 12,
+      color: theme.muted,
+      marginTop: 3,
+      lineHeight: 16,
+    },
+    actionSubtitle: {
+      fontSize: 11,
+      color: theme.muted,
+      marginTop: 6,
+    },
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#10B981',
+    },
 
     recentHeader: { paddingHorizontal: 20, marginTop: 10, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     seeAll: { color: theme.accent, fontWeight: '700' },
@@ -130,12 +187,90 @@ export default function Dashboard() {
 
           <StatCard label={"Today's Surveys"} value={todaySurveys.length} icon={'bar-chart'} description={'Surveys completed today'} />
 
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
+
           <View style={styles.quickActionsContainer}>
-            <ActionCard title="New Survey" subtitle="Create inspection" icon={'assignment'} onPress={() => router.push('/(drawer)/(tabs)/new-survey')} />
-            <ActionCard title="Camera" subtitle="Capture photo" icon={'photo-camera'} onPress={() => router.push('../camera')} />
-            <ActionCard title="Location" subtitle="Get coordinates" icon={'my-location'} onPress={() => router.push('../location')} />
-            <ActionCard title="Contacts" subtitle="Select client" icon={'contacts'} onPress={() => router.push('../contacts')} />
+            {/* New Survey Card */}
+            <Pressable
+              style={styles.gridCard}
+              onPress={() => router.push('/(drawer)/(tabs)/new-survey')}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={[styles.actionIconBox, { backgroundColor: '#3B82F615' }]}>
+                  <MaterialIcons name="assignment" size={20} color="#3B82F6" />
+                </View>
+                {draftInProgress && <View style={styles.statusDot} />}
+              </View>
+              <View>
+                <Text style={styles.actionTitle} numberOfLines={1}>New Survey</Text>
+                <Text style={styles.actionDescription} numberOfLines={2}>Log inspection details & select priority</Text>
+                <Text style={[styles.actionSubtitle, draftInProgress && { color: '#3B82F6', fontWeight: '600' }]} numberOfLines={1}>
+                  {draftInProgress ? 'Draft Active' : 'Ready'}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Camera Card */}
+            <Pressable
+              style={styles.gridCard}
+              onPress={() => router.push('../camera')}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={[styles.actionIconBox, { backgroundColor: '#8B5CF615' }]}>
+                  <MaterialIcons name="photo-camera" size={20} color="#8B5CF6" />
+                </View>
+                {hasPhotos && <View style={styles.statusDot} />}
+              </View>
+              <View>
+                <Text style={styles.actionTitle} numberOfLines={1}>Camera</Text>
+                <Text style={styles.actionDescription} numberOfLines={2}>Capture photos and link to current draft</Text>
+                <Text style={[styles.actionSubtitle, hasPhotos && { color: '#8B5CF6', fontWeight: '600' }]} numberOfLines={1}>
+                  {hasPhotos ? `${activePhotos.length} Photo${activePhotos.length > 1 ? 's' : ''}` : 'Ready'}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Location Card */}
+            <Pressable
+              style={styles.gridCard}
+              onPress={() => router.push('../location')}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={[styles.actionIconBox, { backgroundColor: '#10B98115' }]}>
+                  <MaterialIcons name="my-location" size={20} color="#10B981" />
+                </View>
+                {hasLocation && <View style={styles.statusDot} />}
+              </View>
+              <View>
+                <Text style={styles.actionTitle} numberOfLines={1}>Location</Text>
+                <Text style={styles.actionDescription} numberOfLines={2}>Fetch current GPS coordinates & accuracy</Text>
+                <Text style={[styles.actionSubtitle, hasLocation && { color: '#10B981', fontWeight: '600' }]} numberOfLines={1}>
+                  {hasLocation ? `${activeLocation.coords.latitude.toFixed(3)}, ${activeLocation.coords.longitude.toFixed(3)}` : 'Ready'}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Contacts Card */}
+            <Pressable
+              style={styles.gridCard}
+              onPress={() => router.push('../contacts')}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={[styles.actionIconBox, { backgroundColor: '#F59E0B15' }]}>
+                  <MaterialIcons name="contacts" size={20} color="#F59E0B" />
+                </View>
+                {hasContact && <View style={styles.statusDot} />}
+              </View>
+              <View>
+                <Text style={styles.actionTitle} numberOfLines={1}>Contacts</Text>
+                <Text style={styles.actionDescription} numberOfLines={2}>Import client contact from address book</Text>
+                <Text style={[styles.actionSubtitle, hasContact && { color: '#F59E0B', fontWeight: '600' }]} numberOfLines={1}>
+                  {hasContact ? activeContact.name : 'Ready'}
+                </Text>
+              </View>
+            </Pressable>
           </View>
 
           {/* ── Always-visible Create Survey button ── */}
