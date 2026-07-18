@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, Image, ActivityIndicator, Alert, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, Pressable, Image, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAppTheme } from '../../context/ThemeContext';
 
