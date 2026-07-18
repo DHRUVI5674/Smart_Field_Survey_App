@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
 
 export default function ListCard({ survey, onPress }) {
@@ -18,7 +19,7 @@ export default function ListCard({ survey, onPress }) {
       width: 48,
       height: 48,
       borderRadius: 12,
-      backgroundColor: 'rgba(6,99,120,0.06)',
+      backgroundColor: `${theme.accent}15`,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: spacing.sm,
@@ -31,8 +32,8 @@ export default function ListCard({ survey, onPress }) {
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.icon}>{/* placeholder */}
-        <Text style={{ fontSize: 18 }}>🏢</Text>
+      <View style={styles.icon}>
+        <MaterialIcons name="business" size={22} color={theme.accent} />
       </View>
       <View style={styles.info}>
         <Text style={styles.title}>{survey.siteName}</Text>

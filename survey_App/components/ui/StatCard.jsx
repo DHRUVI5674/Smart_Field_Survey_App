@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
 
 export default function StatCard({ label, value, icon, description }) {
@@ -22,12 +23,12 @@ export default function StatCard({ label, value, icon, description }) {
       width: 64,
       height: 64,
       borderRadius: 12,
-      backgroundColor: 'rgba(14,165,255,0.06)',
+      backgroundColor: `${theme.accent}15`,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: spacing.sm,
     },
-    icon: { fontSize: 28, color: theme.text },
+    icon: { fontSize: 28, color: theme.accent },
     right: { flex: 1 },
     label: { color: theme.muted, fontSize: 13 },
     value: { color: theme.text, fontSize: 34, fontWeight: '700', marginTop: 4 },
@@ -37,7 +38,7 @@ export default function StatCard({ label, value, icon, description }) {
   return (
     <View style={styles.card}>
       <View style={styles.left}>
-        <Text style={styles.icon}>{icon}</Text>
+        <MaterialIcons name={icon} size={28} color={theme.accent} />
       </View>
       <View style={styles.right}>
         <Text style={styles.label}>{label}</Text>

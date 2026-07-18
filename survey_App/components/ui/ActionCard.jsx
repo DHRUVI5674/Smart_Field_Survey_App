@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
 
 export default function ActionCard({ title, subtitle, icon, onPress }) {
@@ -18,12 +19,12 @@ export default function ActionCard({ title, subtitle, icon, onPress }) {
       width: 44,
       height: 44,
       borderRadius: 10,
-      backgroundColor: 'rgba(0,0,0,0.03)',
+      backgroundColor: `${theme.accent}15`,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: spacing.sm,
     },
-    icon: { fontSize: 20, color: theme.text },
+    icon: { fontSize: 20, color: theme.accent },
     content: { flex: 1 },
     title: { color: theme.text, fontWeight: '700' },
     subtitle: { color: theme.muted, fontSize: 12, marginTop: 4 },
@@ -32,7 +33,7 @@ export default function ActionCard({ title, subtitle, icon, onPress }) {
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{icon}</Text>
+        <MaterialIcons name={icon} size={22} color={theme.accent} />
       </View>
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>

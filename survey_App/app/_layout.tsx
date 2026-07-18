@@ -22,6 +22,7 @@ export default function RootLayout() {
           <SurveyProvider>
             <Stack>
               <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+              <Stack.Screen name="survey-details" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
             <StatusBar style="auto" />

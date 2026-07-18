@@ -17,10 +17,12 @@ import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useSurveys } from '../../context/surveyContext';
 
 export default function ContactsScreen() {
   const navigation = useNavigation();
   const { theme, spacing, mode, toggleTheme } = useAppTheme();
+  const { setActiveContact } = useSurveys();
 
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -141,6 +143,7 @@ export default function ContactsScreen() {
     await Clipboard.setStringAsync(phone);
     setToastMessage(`Copied: ${phone} (${contact.name})`);
     setShowToast(true);
+    setActiveContact({ name: contact.name, phone });
   };
 
   // Auto-hide the custom toast notification

@@ -22,7 +22,7 @@ import { useSurveys } from '../../context/surveyContext';
 
 export default function ClipboardScreen() {
   const navigation = useNavigation();
-  const { surveys } = useSurveys();
+  const { surveys, setActiveContact, setActiveLocation } = useSurveys();
   const { theme, spacing, mode, toggleTheme } = useAppTheme();
 
   const [notes, setNotes] = useState('');
@@ -47,6 +47,7 @@ export default function ClipboardScreen() {
     await Clipboard.setStringAsync(clientContactNumber);
     setToastMessage(`Copied Contact Number: ${clientContactNumber}`);
     setShowToast(true);
+    setActiveContact({ name: clientContactName, phone: clientContactNumber });
   };
 
   const handleCopyLocation = async () => {
@@ -74,6 +75,7 @@ export default function ClipboardScreen() {
       await Clipboard.setStringAsync(textToCopy);
       setToastMessage(`Copied Coordinates: ${textToCopy}`);
       setShowToast(true);
+      setActiveLocation(loc);
     } catch (error) {
       console.error(error);
       Alert.alert('Location Error', 'Unable to fetch current coordinates.');

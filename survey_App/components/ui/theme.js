@@ -14,7 +14,7 @@ export const darkTheme = {
   surface: '#0b1220',
   muted: '#94A3B8',
   text: '#E6EEF8',
-  accent: '#064A78',
+  accent: '#60A5FA',
   accentDark: '#93C5FD',
   cardShadow: 'rgba(2,6,23,0.6)',
 };

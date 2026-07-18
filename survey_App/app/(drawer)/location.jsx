@@ -16,10 +16,12 @@ import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
+import { useSurveys } from '../../context/surveyContext';
 
 export default function LocationScreen() {
   const navigation = useNavigation();
   const { theme, spacing, mode, toggleTheme } = useAppTheme();
+  const { setActiveLocation } = useSurveys();
   
   const [permissionResponse, requestPermission] = Location.useForegroundPermissions();
   const [location, setLocation] = useState(null);
@@ -47,6 +49,7 @@ export default function LocationScreen() {
         accuracy: Location.Accuracy.High,
       });
       setLocation(currentLoc);
+      setActiveLocation(currentLoc);
     } catch (error) {
       console.error(error);
       Alert.alert(
@@ -63,6 +66,7 @@ export default function LocationScreen() {
     if (permissionResponse?.granted) {
       fetchLocation();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissionResponse]);
 
   const handleRequestPermission = async () => {
@@ -158,6 +162,7 @@ export default function LocationScreen() {
     scrollContent: {
       padding: spacing.md,
       alignItems: 'center',
+      paddingBottom: 40,
     },
     visualSection: {
       width: '100%',
