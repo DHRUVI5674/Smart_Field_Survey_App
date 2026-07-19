@@ -92,6 +92,17 @@ export default function DrawerLayout() {
           ),
         }}
       />
+      {/* QR Survey — hidden from drawer */}
+      <Drawer.Screen
+        name="qr-survey"
+        options={{ drawerItemStyle: { display: 'none' }, title: 'QR Code' }}
+      />
+
+      {/* Shake Report — hidden from drawer */}
+      <Drawer.Screen
+        name="shake-report"
+        options={{ drawerItemStyle: { display: 'none' }, title: 'Report Issue' }}
+      />
     </Drawer>
   );
 }

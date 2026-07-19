@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
+import { hapticButtonPress } from '../../../utils/haptics';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { useSurveys } from '../../../context/surveyContext';
@@ -14,7 +14,10 @@ export default function ProfileScreen() {
   const { theme, mode, toggleTheme } = useAppTheme();
   const { surveys } = useSurveys();
 
-  const openDrawer = () => navigation.dispatch(DrawerActions.openDrawer());
+  const openDrawer = async () => {
+    await hapticButtonPress();
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
 
   const totalSurveys = surveys.length;
   const highPriority = surveys.filter((s) => s.priority === 'High').length;

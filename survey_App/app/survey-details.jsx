@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,17 @@ import {
   Alert,
   StyleSheet,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as Speech from 'expo-speech';
 import { useSurveys } from '../context/surveyContext';
 import { useAppTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import { Audio } from 'expo-av';
+import { hapticButtonPress } from '../utils/haptics';
 
 // ─── Status config ────────────────────────────────────────────────
 const STATUS_OPTIONS = [
@@ -40,8 +45,50 @@ export default function SurveyDetailsScreen() {
   const { surveyId }  = useLocalSearchParams();
   const { surveys, updateSurvey, deleteSurvey } = useSurveys();
   const { theme, mode, toggleTheme }             = useAppTheme();
+  const { showToast }                            = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const voiceSoundRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (voiceSoundRef.current) {
+        voiceSoundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  const handlePlayVoice = async () => {
+    await hapticButtonPress();
+    if (!survey?.voiceUri) return;
+    try {
+      if (isPlayingVoice) {
+        if (voiceSoundRef.current) {
+          await voiceSoundRef.current.stopAsync();
+          await voiceSoundRef.current.unloadAsync();
+          voiceSoundRef.current = null;
+        }
+        setIsPlayingVoice(false);
+        return;
+      }
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: survey.voiceUri },
+        { shouldPlay: true }
+      );
+      voiceSoundRef.current = sound;
+      setIsPlayingVoice(true);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          setIsPlayingVoice(false);
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      showToast('Playback error', { type: 'error' });
+    }
+  };
 
   const survey = surveys.find((s) => s.id === surveyId);
 
@@ -129,6 +176,40 @@ export default function SurveyDetailsScreen() {
         ]
       );
     }
+  };
+
+  const handleShare = async () => {
+    await hapticButtonPress();
+    try {
+      await Share.share({
+        message: `📋 Survey: ${survey.siteName}\nClient: ${survey.clientName}\nPriority: ${survey.priority}\nDate: ${survey.date || 'N/A'}\nStatus: ${survey.status}\nID: ${survey.id}`,
+        title: `Survey – ${survey.siteName}`,
+      });
+    } catch (e) {
+      showToast('Unable to share right now.', { type: 'error' });
+    }
+  };
+
+  const handleQR = () => {
+    hapticButtonPress();
+    router.push({ pathname: '/(drawer)/qr-survey', params: { surveyId: survey.id } });
+  };
+
+  const handleTTS = async () => {
+    await hapticButtonPress();
+    if (isSpeaking) {
+      Speech.stop();
+      setIsSpeaking(false);
+      return;
+    }
+    const text = `Survey for ${survey.siteName}. Client: ${survey.clientName}. Priority: ${survey.priority}. Status: ${survey.status}. ${survey.description ? 'Description: ' + survey.description : ''} ${survey.notes ? 'Notes: ' + survey.notes : ''}`;
+    setIsSpeaking(true);
+    Speech.speak(text, {
+      language: 'en',
+      rate: 0.95,
+      onDone: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
   };
 
 
@@ -268,7 +349,16 @@ export default function SurveyDetailsScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Survey Details</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={toggleTheme}>
+          <Pressable onPress={handleTTS} style={{ padding: 4 }}>
+            <MaterialIcons name={isSpeaking ? 'stop' : 'record-voice-over'} size={22} color={isSpeaking ? '#EF4444' : theme.accentDark} />
+          </Pressable>
+          <Pressable onPress={handleQR} style={{ padding: 4 }}>
+            <MaterialIcons name="qr-code" size={22} color={theme.accentDark} />
+          </Pressable>
+          <Pressable onPress={handleShare} style={{ padding: 4 }}>
+            <MaterialIcons name="share" size={22} color={theme.accentDark} />
+          </Pressable>
+          <Pressable onPress={toggleTheme} style={{ padding: 4 }}>
             <MaterialIcons
               name={mode === 'light' ? 'nights-stay' : 'wb-sunny'}
               size={24}
@@ -598,6 +688,32 @@ export default function SurveyDetailsScreen() {
             </View>
           )}
         </View>
+
+        {/* ─── Voice Note ─── */}
+        {survey.voiceUri && (
+          <>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="mic" size={18} color={theme.accent} />
+              <Text style={styles.sectionTitle}>Voice Note</Text>
+            </View>
+            <View style={styles.detailCard}>
+              <View style={styles.detailRow}>
+                <Pressable
+                  onPress={handlePlayVoice}
+                  style={[styles.detailIconBox, { backgroundColor: isPlayingVoice ? '#EF444415' : `${theme.accent}15` }]}
+                >
+                  <MaterialIcons name={isPlayingVoice ? 'stop' : 'play-arrow'} size={24} color={isPlayingVoice ? '#EF4444' : theme.accent} />
+                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.detailLabel}>Audio Remarks</Text>
+                  <Text style={styles.detailValue}>
+                    {isPlayingVoice ? 'Playing back voice note...' : 'Voice note attached'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
 
         {/* ─── Notes ─── */}
         <View style={styles.sectionHeader}>

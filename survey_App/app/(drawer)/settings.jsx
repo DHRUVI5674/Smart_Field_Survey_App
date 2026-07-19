@@ -1,14 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useAppTheme } from '../../context/ThemeContext';
 
+// AsyncStorage key for the survey reminders toggle
+const REMINDERS_KEY = '@survey_reminders_enabled';
+
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { theme, mode, toggleTheme } = useAppTheme();
+
+  // ── Notification toggle state ──────────────────────────────────────
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
+
+  // Load persisted toggle value on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(REMINDERS_KEY);
+        // null = never set → default to true (enabled)
+        setRemindersEnabled(stored === null || stored === 'true');
+      } catch (e) {
+        console.warn('[Settings] Failed to load reminders preference:', e);
+      }
+    })();
+  }, []);
+
+  const handleRemindersToggle = async (value) => {
+    setRemindersEnabled(value);
+    try {
+      await AsyncStorage.setItem(REMINDERS_KEY, value ? 'true' : 'false');
+    } catch (e) {
+      console.warn('[Settings] Failed to save reminders preference:', e);
+    }
+  };
 
   const openDrawer = () => navigation.dispatch(DrawerActions.openDrawer());
 
@@ -69,8 +98,7 @@ export default function SettingsScreen() {
     },
   });
 
-  const settingsItems = [
-    { icon: 'notifications', label: 'Notifications', sub: 'Enabled', color: '#F59E0B' },
+  const staticGeneralItems = [
     { icon: 'language', label: 'Language', sub: 'English', color: '#3B82F6' },
     { icon: 'cloud-upload', label: 'Auto-Sync', sub: 'Off', color: '#8B5CF6' },
     { icon: 'storage', label: 'Storage', sub: '12.4 MB used', color: '#10B981' },
@@ -122,8 +150,28 @@ export default function SettingsScreen() {
         {/* General */}
         <Text style={styles.sectionTitle}>General</Text>
         <View style={styles.card}>
-          {settingsItems.map((item, index) => (
+          {/* ── Survey Reminders (functional toggle) ── */}
+          <View style={styles.row}>
+            <View style={[styles.iconBox, { backgroundColor: '#F59E0B18' }]}>
+              <MaterialIcons name="notifications" size={22} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Survey Reminders</Text>
+              <Text style={styles.rowSub}>
+                {remindersEnabled ? 'Enabled — draft surveys will send a reminder' : 'Disabled'}
+              </Text>
+            </View>
+            <Switch
+              value={remindersEnabled}
+              onValueChange={handleRemindersToggle}
+              trackColor={{ false: `${theme.muted}40`, true: '#F59E0B80' }}
+              thumbColor={remindersEnabled ? '#F59E0B' : '#f4f3f4'}
+            />
+          </View>
+
+          {staticGeneralItems.map((item, index) => (
             <React.Fragment key={item.label}>
+              <View style={styles.divider} />
               <View style={styles.row}>
                 <View style={[styles.iconBox, { backgroundColor: `${item.color}18` }]}>
                   <MaterialIcons name={item.icon} size={22} color={item.color} />
@@ -134,7 +182,6 @@ export default function SettingsScreen() {
                 </View>
                 <MaterialIcons name="chevron-right" size={22} color={theme.muted} />
               </View>
-              {index < settingsItems.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
           ))}
         </View>
