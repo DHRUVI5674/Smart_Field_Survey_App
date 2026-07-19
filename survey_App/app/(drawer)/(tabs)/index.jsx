@@ -1,16 +1,63 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Image, Animated, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
+import { DrawerActions, useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSurveys } from '../../../context/surveyContext';
 import StatCard from '../../../components/ui/StatCard';
-import ActionCard from '../../../components/ui/ActionCard';
 import ListCard from '../../../components/ui/ListCard';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { getAchievements, getStreak, getWeeklyCount } from '../../../utils/achievements';
 
 const avatarImg = require('../../../assets/images/avatar.png');
+const WEEKLY_GOAL = 5;
+
+// Custom Progress Circle using absolute borders for reliable rendering
+function CircularProgress({ progress, value, label, color = "#3B82F6", size = 80, strokeWidth = 6 }) {
+  const rotation = new Animated.Value(0);
+  
+  useEffect(() => {
+    Animated.timing(rotation, {
+      toValue: progress,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: strokeWidth,
+          borderColor: `${color}20`,
+          position: 'absolute',
+        }}
+      />
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: strokeWidth,
+          borderColor: color,
+          borderTopColor: 'transparent',
+          borderRightColor: 'transparent',
+          position: 'absolute',
+          transform: [{ rotate: '-45deg' }],
+        }}
+      />
+      <View style={{ alignItems: 'center' }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: color }}>{value}</Text>
+        <Text style={{ fontSize: 9, color: '#94A3B8', marginTop: 1, textTransform: 'uppercase', fontWeight: '600' }}>{label}</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -18,6 +65,9 @@ export default function Dashboard() {
 
   const { surveys, activePhotos, activeLocation, activeContact } = useSurveys();
   const { theme, mode, toggleTheme } = useAppTheme();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
 
   const openDrawer = () => navigation.dispatch(DrawerActions.openDrawer());
 
@@ -29,32 +79,139 @@ export default function Dashboard() {
   const hasContact = !!activeContact;
   const draftInProgress = hasPhotos || hasLocation || hasContact;
 
+  // Derive achievements statistics
+  const streak = getStreak(surveys);
+  const weeklyCount = getWeeklyCount(surveys);
+  const achievements = getAchievements(surveys).filter(a => a.earned);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 700);
+  };
+
+  // Load recently viewed surveys on dashboard focus
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        try {
+          const stored = await AsyncStorage.getItem('@recently_viewed');
+          if (stored && active) {
+            setRecentlyViewed(JSON.parse(stored));
+          }
+        } catch (e) {
+          console.warn('Failed to load recently viewed list', e);
+        }
+      })();
+      return () => { active = false; };
+    }, [])
+  );
+
+  // Map recently viewed IDs back to survey records
+  const recentSurveysWithData = recentlyViewed
+    .map(id => surveys.find(s => s.id === id))
+    .filter(Boolean)
+    .slice(0, 3);
+
   const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.background },
     container: { flex: 1, backgroundColor: 'transparent' },
     scrollContent: { paddingBottom: 30 },
     header: { height: 75, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     menuButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 10 },
-    menuIcon: { fontSize: 26, color: theme.accentDark },
     headerTitle: { fontSize: 20, fontWeight: '700', color: theme.text, textAlign: 'center' },
     headerSubtitle: { fontSize: 11, color: theme.muted, textAlign: 'center', marginTop: 2 },
     notificationButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 10 },
-    notificationIcon: { fontSize: 20, color: theme.accentDark },
 
     welcomeSection: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8 },
     welcomeText: { fontSize: 24, fontWeight: '700', color: theme.text },
     welcomeSubText: { fontSize: 14, color: theme.muted, marginTop: 5 },
 
-    studentCard: { marginHorizontal: 20, padding: 18, backgroundColor: theme.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', elevation: 4, shadowColor: theme.cardShadow, shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 4 } },
+    // Streak tracker banner
+    streakBanner: {
+      marginHorizontal: 20,
+      marginTop: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#F59E0B15',
+      borderRadius: 14,
+      padding: 14,
+      gap: 12,
+      borderWidth: 1.5,
+      borderColor: '#F59E0B30',
+    },
+    streakText: { fontSize: 15, fontWeight: '700', color: '#F59E0B' },
+    streakSub: { fontSize: 12, color: '#F59E0B99', marginTop: 2 },
+
+    // Weekly progress card
+    weeklyCard: {
+      marginHorizontal: 20,
+      marginTop: 16,
+      backgroundColor: theme.surface,
+      borderRadius: 18,
+      padding: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 18,
+      elevation: 3,
+      shadowColor: theme.cardShadow,
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+    },
+    weeklyInfo: { flex: 1 },
+    weeklyTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+    weeklySubtitle: { fontSize: 13, color: theme.muted, marginTop: 4 },
+    weeklyGoalText: { fontSize: 12, color: theme.accent, fontWeight: '600', marginTop: 6 },
+
+    studentCard: { marginHorizontal: 20, marginTop: 16, padding: 18, backgroundColor: theme.surface, borderRadius: 16, flexDirection: 'row', alignItems: 'center', elevation: 4, shadowColor: theme.cardShadow, shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 4 } },
     studentAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.accent, justifyContent: 'center', alignItems: 'center' },
     avatarImage: { width: 56, height: 56, borderRadius: 28 },
-    avatarText: { fontSize: 20, fontWeight: '700', color: theme.surface },
     studentInfo: { flex: 1, marginLeft: 14 },
     studentName: { fontSize: 17, fontWeight: '700', color: theme.text },
     studentDetails: { fontSize: 13, color: theme.muted, marginTop: 3 },
     viewProfile: { color: theme.accentDark, fontWeight: '700' },
 
     sectionTitle: { fontSize: 20, fontWeight: '700', color: theme.text },
+    sectionRow: { paddingHorizontal: 20, marginTop: 22, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    seeAll: { color: theme.accent, fontWeight: '700' },
+
+    // Achievements row
+    achievementsScroll: { paddingLeft: 20, paddingBottom: 6 },
+    badgeChip: {
+      alignItems: 'center',
+      marginRight: 14,
+      minWidth: 76,
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      padding: 12,
+      elevation: 2,
+      shadowColor: theme.cardShadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    badgeEmoji: { fontSize: 28, marginBottom: 4 },
+    badgeTitle: { fontSize: 11, fontWeight: '700', color: theme.text, textAlign: 'center' },
+
+    // Recently Viewed row
+    recentViewedScroll: { paddingLeft: 20, gap: 10 },
+    recentChip: {
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      minWidth: 120,
+      elevation: 2,
+      shadowColor: theme.cardShadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    recentChipTitle: { fontSize: 13, fontWeight: '700', color: theme.text },
+    recentChipSub: { fontSize: 11, color: theme.muted, marginTop: 3 },
+
+    // Quick Actions
     quickActionsContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -85,41 +242,17 @@ export default function Dashboard() {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    actionTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: theme.text,
-      marginTop: 8,
-    },
-    actionDescription: {
-      fontSize: 12,
-      color: theme.muted,
-      marginTop: 3,
-      lineHeight: 16,
-    },
-    actionSubtitle: {
-      fontSize: 11,
-      color: theme.muted,
-      marginTop: 6,
-    },
-    statusDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#10B981',
-    },
-
-    recentHeader: { paddingHorizontal: 20, marginTop: 10, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    seeAll: { color: theme.accent, fontWeight: '700' },
+    actionTitle: { fontSize: 14, fontWeight: '700', color: theme.text, marginTop: 8 },
+    actionDescription: { fontSize: 12, color: theme.muted, marginTop: 3, lineHeight: 16 },
+    actionSubtitle: { fontSize: 11, color: theme.muted, marginTop: 6 },
+    statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' },
 
     emptyCard: { marginHorizontal: 20, backgroundColor: theme.surface, borderRadius: 16, padding: 22, alignItems: 'center' },
-    emptyIcon: { fontSize: 44, color: theme.muted },
     emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginTop: 10 },
     emptyText: { textAlign: 'center', color: theme.muted, marginTop: 8 },
     createButton: { backgroundColor: theme.accent, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 18 },
     createButtonText: { color: theme.surface, fontWeight: '700' },
 
-    // Persistent create survey banner
     createSurveyBanner: {
       marginHorizontal: 20,
       marginTop: 18,
@@ -165,12 +298,45 @@ export default function Dashboard() {
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} colors={[theme.accent]} />}
+        >
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeText}>Welcome back, Dhruvi 👋</Text>
             <Text style={styles.welcomeSubText}>Manage your field inspections easily</Text>
           </View>
 
+          {/* Streak Banner */}
+          {streak > 0 && (
+            <View style={styles.streakBanner}>
+              <Text style={{ fontSize: 26 }}>🔥</Text>
+              <View>
+                <Text style={styles.streakText}>{streak}-Day Active Streak!</Text>
+                <Text style={styles.streakSub}>Keep it up — you're doing great!</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Weekly Progress Card */}
+          <View style={styles.weeklyCard}>
+            <CircularProgress
+              progress={Math.min(weeklyCount / WEEKLY_GOAL, 1)}
+              value={`${weeklyCount}/${WEEKLY_GOAL}`}
+              label="Goal"
+              color={theme.accent}
+            />
+            <View style={styles.weeklyInfo}>
+              <Text style={styles.weeklyTitle}>Weekly Progress</Text>
+              <Text style={styles.weeklySubtitle}>{weeklyCount} of {WEEKLY_GOAL} surveys completed this week</Text>
+              <Text style={styles.weeklyGoalText}>
+                {weeklyCount >= WEEKLY_GOAL ? "🏆 Weekly Goal Achieved!" : `${WEEKLY_GOAL - weeklyCount} more to hit your goal`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Student Profile Card */}
           <View style={styles.studentCard}>
             <View style={styles.studentAvatar}>
               <Image source={avatarImg} style={styles.avatarImage} />
@@ -186,6 +352,44 @@ export default function Dashboard() {
           </View>
 
           <StatCard label={"Today's Surveys"} value={todaySurveys.length} icon={'bar-chart'} description={'Surveys completed today'} />
+
+          {/* Achievements / Badges Section */}
+          {achievements.length > 0 && (
+            <View>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Achievements</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsScroll}>
+                {achievements.map((a) => (
+                  <View key={a.id} style={styles.badgeChip}>
+                    <Text style={styles.badgeEmoji}>{a.icon}</Text>
+                    <Text style={styles.badgeTitle}>{a.title}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Recently Viewed Section */}
+          {recentSurveysWithData.length > 0 && (
+            <View>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Recently Viewed</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentViewedScroll}>
+                {recentSurveysWithData.map((s) => (
+                  <Pressable
+                    key={s.id}
+                    style={styles.recentChip}
+                    onPress={() => router.push({ pathname: '/survey-details', params: { surveyId: s.id } })}
+                  >
+                    <Text style={styles.recentChipTitle} numberOfLines={1}>{s.siteName}</Text>
+                    <Text style={styles.recentChipSub} numberOfLines={1}>{s.clientName}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -273,7 +477,7 @@ export default function Dashboard() {
             </Pressable>
           </View>
 
-          {/* ── Always-visible Create Survey button ── */}
+          {/* Create Survey Banner */}
           <Pressable
             style={styles.createSurveyBanner}
             onPress={() => router.push('/(drawer)/(tabs)/new-survey')}
