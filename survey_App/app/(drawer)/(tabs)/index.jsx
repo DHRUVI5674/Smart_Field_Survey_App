@@ -17,7 +17,7 @@ const WEEKLY_GOAL = 5;
 // Custom Progress Circle using absolute borders for reliable rendering
 function CircularProgress({ progress, value, label, color = "#3B82F6", size = 80, strokeWidth = 6 }) {
   const rotation = new Animated.Value(0);
-  
+
   useEffect(() => {
     Animated.timing(rotation, {
       toValue: progress,
@@ -274,6 +274,16 @@ export default function Dashboard() {
     createSurveyBannerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
     createSurveyBannerSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
     createSurveyArrow: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: 6 },
+
+    // Only added to fix Recent Surveys spacing
+    recentHeader: {
+      paddingHorizontal: 20,
+      marginTop: 22,
+      marginBottom: 10,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
   });
 
   return (
