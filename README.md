@@ -10,9 +10,6 @@ A simple, organized, and efficient solution for creating, managing, tracking, an
 
 ![React Native](https://img.shields.io/badge/React%20Native-0.86.0-61DAFB?style=for-the-badge&logo=react)
 ![Expo](https://img.shields.io/badge/Expo-Development-000020?style=for-the-badge&logo=expo)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript)
-![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-success?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange?style=for-the-badge)
 
 </div>
 
